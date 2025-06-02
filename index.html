@@ -110,10 +110,11 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            margin: 2rem 0;
+            margin: 3rem 0;
             flex-wrap: wrap;
-            gap: 2rem;
+            gap: 3rem;
             width: 100%;
+            position: relative;
         }
 
         .person-card {
@@ -126,11 +127,49 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             position: relative;
             min-width: 280px;
             max-width: 320px;
+            z-index: 10;
         }
 
         .person-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Connecting Lines */
+        .tree-connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .connection-line {
+            position: absolute;
+            background: #667eea;
+            z-index: 1;
+        }
+
+        .vertical-line {
+            width: 3px;
+            background: linear-gradient(to bottom, #667eea, #764ba2);
+        }
+
+        .horizontal-line {
+            height: 3px;
+            background: linear-gradient(to right, #667eea, #764ba2);
+        }
+
+        .connection-dot {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #667eea;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2;
         }
 
         .person-info h3 {
@@ -312,6 +351,25 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             #saveOptionsModal .modal-content > div[style*="grid-template-columns"] {
                 grid-template-columns: 1fr !important;
             }
+
+            /* Make connecting lines more visible on mobile */
+            .vertical-line {
+                width: 4px;
+            }
+
+            .horizontal-line {
+                height: 4px;
+            }
+
+            .connection-dot {
+                width: 10px;
+                height: 10px;
+            }
+
+            .tree-level {
+                gap: 2rem;
+                margin: 2rem 0;
+            }
         }
 
         .empty-state {
@@ -394,9 +452,9 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
                 </div>
 
                 <div class="form-group">
-                    <label for="personParent">Parent</label>
-                    <select id="personParent">
-                        <option value="">Select Parent (Optional)</option>
+                    <label for="personParent">Child of *</label>
+                    <select id="personParent" required>
+                        <option value="">Select Parent</option>
                     </select>
                 </div>
 
@@ -511,6 +569,24 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
         </div>
     </div>
 
+    <!-- Reminder Modal -->
+    <div id="reminderModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <span class="close" onclick="closeModal('reminderModal')">&times;</span>
+            <div style="text-align: center; padding: 1rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📝</div>
+                <h2 style="color: #4a5568; margin-bottom: 1rem;">Changes Saved Successfully!</h2>
+                <div class="status-message status-warning">
+                    <strong>📌 Important Reminder:</strong><br>
+                    Please make sure to use the "💾 Save Updated Data" button once all your edits are complete to permanently save changes.
+                </div>
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn" onclick="closeModal('reminderModal')">✅ Got it!</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Email JSON Data Modal -->
     <div id="emailJsonModal" class="modal">
         <div class="modal-content">
@@ -590,6 +666,11 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
             loadFamilyData();
+            
+            // Redraw connections on window resize
+            window.addEventListener('resize', function() {
+                setTimeout(drawConnections, 100);
+            });
         });
 
         // Data Management Functions
@@ -652,7 +733,14 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             
             // Render tree levels
             treeDisplay.innerHTML = '';
-            renderTreeLevel(tree, treeDisplay, 0);
+            const treeContainer = document.createElement('div');
+            treeContainer.className = 'tree';
+            
+            renderTreeLevel(tree, treeContainer, 0);
+            treeDisplay.appendChild(treeContainer);
+            
+            // Add connecting lines after DOM is ready
+            setTimeout(drawConnections, 100);
         }
 
         function buildTreeStructure() {
@@ -681,9 +769,11 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             
             const levelDiv = document.createElement('div');
             levelDiv.className = 'tree-level';
+            levelDiv.setAttribute('data-level', level);
             
             persons.forEach(person => {
                 const personCard = createPersonCard(person);
+                personCard.setAttribute('data-person-id', person.id);
                 levelDiv.appendChild(personCard);
             });
             
@@ -693,6 +783,125 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             persons.forEach(person => {
                 if (person.children.length > 0) {
                     renderTreeLevel(person.children, container, level + 1);
+                }
+            });
+        }
+
+        function drawConnections() {
+            // Remove existing connections
+            const existingConnections = document.querySelectorAll('.tree-connections');
+            existingConnections.forEach(conn => conn.remove());
+            
+            const treeContainer = document.querySelector('.tree');
+            if (!treeContainer) return;
+            
+            const connectionsContainer = document.createElement('div');
+            connectionsContainer.className = 'tree-connections';
+            treeContainer.appendChild(connectionsContainer);
+            
+            // Get all person cards
+            const personCards = document.querySelectorAll('[data-person-id]');
+            
+            // Group by level
+            const levels = {};
+            personCards.forEach(card => {
+                const level = parseInt(card.closest('[data-level]').getAttribute('data-level'));
+                if (!levels[level]) levels[level] = [];
+                levels[level].push(card);
+            });
+            
+            // Draw connections between levels
+            Object.keys(levels).forEach(levelKey => {
+                const level = parseInt(levelKey);
+                const nextLevel = level + 1;
+                
+                if (levels[nextLevel]) {
+                    drawLevelConnections(levels[level], levels[nextLevel], connectionsContainer);
+                }
+            });
+        }
+
+        function drawLevelConnections(parentLevel, childLevel, container) {
+            parentLevel.forEach(parentCard => {
+                const parentId = parentCard.getAttribute('data-person-id');
+                const parentRect = parentCard.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                // Find children of this parent
+                const children = childLevel.filter(childCard => {
+                    const childId = childCard.getAttribute('data-person-id');
+                    const childPerson = familyData.find(p => p.id === childId);
+                    return childPerson && childPerson.parentId === parentId;
+                });
+                
+                if (children.length === 0) return;
+                
+                // Calculate parent connection point
+                const parentX = parentRect.left + parentRect.width / 2 - containerRect.left;
+                const parentY = parentRect.bottom - containerRect.top;
+                
+                // Draw vertical line down from parent
+                const verticalLine = document.createElement('div');
+                verticalLine.className = 'connection-line vertical-line';
+                verticalLine.style.left = (parentX - 1.5) + 'px';
+                verticalLine.style.top = parentY + 'px';
+                verticalLine.style.height = '40px';
+                container.appendChild(verticalLine);
+                
+                if (children.length === 1) {
+                    // Single child - direct line
+                    const childCard = children[0];
+                    const childRect = childCard.getBoundingClientRect();
+                    const childX = childRect.left + childRect.width / 2 - containerRect.left;
+                    const childY = childRect.top - containerRect.top;
+                    
+                    // Vertical line to child
+                    const childVertical = document.createElement('div');
+                    childVertical.className = 'connection-line vertical-line';
+                    childVertical.style.left = (childX - 1.5) + 'px';
+                    childVertical.style.top = (parentY + 40) + 'px';
+                    childVertical.style.height = (childY - parentY - 40) + 'px';
+                    container.appendChild(childVertical);
+                    
+                } else {
+                    // Multiple children - horizontal distribution line
+                    const childPositions = children.map(childCard => {
+                        const childRect = childCard.getBoundingClientRect();
+                        return {
+                            card: childCard,
+                            x: childRect.left + childRect.width / 2 - containerRect.left,
+                            y: childRect.top - containerRect.top
+                        };
+                    });
+                    
+                    const leftmostX = Math.min(...childPositions.map(c => c.x));
+                    const rightmostX = Math.max(...childPositions.map(c => c.x));
+                    const distributionY = parentY + 40;
+                    
+                    // Horizontal distribution line
+                    const horizontalLine = document.createElement('div');
+                    horizontalLine.className = 'connection-line horizontal-line';
+                    horizontalLine.style.left = leftmostX + 'px';
+                    horizontalLine.style.top = (distributionY - 1.5) + 'px';
+                    horizontalLine.style.width = (rightmostX - leftmostX) + 'px';
+                    container.appendChild(horizontalLine);
+                    
+                    // Vertical lines to each child
+                    childPositions.forEach(child => {
+                        const childVertical = document.createElement('div');
+                        childVertical.className = 'connection-line vertical-line';
+                        childVertical.style.left = (child.x - 1.5) + 'px';
+                        childVertical.style.top = distributionY + 'px';
+                        childVertical.style.height = (child.y - distributionY) + 'px';
+                        container.appendChild(childVertical);
+                        
+                        // Connection dot at junction
+                        const dot = document.createElement('div');
+                        dot.className = 'connection-dot';
+                        dot.style.left = child.x + 'px';
+                        dot.style.top = distributionY + 'px';
+                        container.appendChild(dot);
+                    });
                 }
             });
         }
@@ -857,7 +1066,8 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
 
             closeModal('saveOptionsModal');
             closeModal('personModal');
-            showStatus('Person saved successfully! Remember to save the updated file.', 'success');
+            showReminderModal();
+            showStatus('Person saved successfully! Remember to save the updated data when finished.', 'success');
         }
 
         function saveAsRequest() {
@@ -876,8 +1086,13 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             const newPerson = {
                 id: generateId(),
                 ...formData,
-                isRoot: false
+                isRoot: formData.parentId === 'ROOT'
             };
+
+            // If creating root, set parentId to null
+            if (formData.parentId === 'ROOT') {
+                newPerson.parentId = null;
+            }
 
             familyData.push(newPerson);
             renderTree();
@@ -887,15 +1102,33 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
         function updatePersonDirect(personId, formData) {
             const person = familyData.find(p => p.id === personId);
             if (person) {
+                // Handle ROOT parent selection
+                if (formData.parentId === 'ROOT') {
+                    formData.parentId = null;
+                    formData.isRoot = true;
+                }
+                
                 Object.assign(person, formData);
                 renderTree();
                 updateStatusDisplay();
             }
         }
 
+        function showReminderModal() {
+            document.getElementById('reminderModal').style.display = 'block';
+        }
+
         // Form Submission
         document.getElementById('personForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            const parentValue = document.getElementById('personParent').value;
+            
+            // Validate parent selection
+            if (!parentValue) {
+                showStatus('Please select a parent for this person.', 'error');
+                return;
+            }
             
             // Store form data for save options modal
             pendingFormData = {
@@ -906,7 +1139,7 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
                 occupation: document.getElementById('personOccupation').value,
                 address: document.getElementById('personAddress').value,
                 lastLocation: document.getElementById('personLastLocation').value,
-                parentId: document.getElementById('personParent').value || null,
+                parentId: parentValue === 'ROOT' ? 'ROOT' : parentValue,
                 spouse: {
                     name: document.getElementById('spouseName').value,
                     dob: document.getElementById('spouseDOB').value,
@@ -1050,8 +1283,11 @@ Family Tree Admin`;
             const newPerson = {
                 id: generateId(),
                 ...personData,
-                isRoot: false
+                isRoot: personData.parentId === 'ROOT'
             };
+
+            // Adjust parentId for ROOT
+            const displayParentId = personData.parentId === 'ROOT' ? null : personData.parentId;
 
             const subject = 'Family Tree: Add Person Request';
             const body = `Hello Admin,
@@ -1159,6 +1395,7 @@ Family Tree User`;
 
         function getPersonName(personId) {
             if (!personId) return null;
+            if (personId === 'ROOT') return 'Top Node (Eldest Ancestor)';
             const person = familyData.find(p => p.id === personId);
             return person ? person.name : 'Unknown';
         }
