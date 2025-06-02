@@ -135,41 +135,67 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
         }
 
-        /* Connecting Lines */
-        .tree-connections {
+        /* Connecting Lines - High Contrast Colors */
+        .person-card::before {
+            content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1;
-            pointer-events: none;
+            width: 4px;
+            height: 40px;
+            background: #2d3748; /* Dark gray - high contrast */
+            top: -40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            z-index: 5;
+            border-radius: 2px;
         }
 
-        .connection-line {
+        .person-card.has-parent::before {
+            display: block;
+        }
+
+        .tree-level:not(:first-child) .person-card {
+            position: relative;
+        }
+
+        /* Horizontal connection lines for multiple children */
+        .horizontal-connection-line {
             position: absolute;
-            background: #667eea;
-            z-index: 1;
-        }
-
-        .vertical-line {
-            width: 3px;
-            background: linear-gradient(to bottom, #667eea, #764ba2);
-        }
-
-        .horizontal-line {
-            height: 3px;
-            background: linear-gradient(to right, #667eea, #764ba2);
+            height: 4px;
+            background: #2d3748; /* Dark gray - high contrast */
+            top: -40px;
+            z-index: 4;
+            border-radius: 2px;
         }
 
         .connection-dot {
             position: absolute;
-            width: 8px;
-            height: 8px;
-            background: #667eea;
+            width: 12px;
+            height: 12px;
+            background: #e53e3e; /* Red dot for visibility */
+            border: 2px solid #2d3748;
             border-radius: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 2;
+            top: -46px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 6;
+        }
+
+        /* Debug mode - temporary bright colors to test visibility */
+        .debug-connections .person-card::before {
+            background: #ff0000 !important; /* Bright red for testing */
+            width: 6px !important;
+        }
+
+        .debug-connections .horizontal-connection-line {
+            background: #00ff00 !important; /* Bright green for testing */
+            height: 6px !important;
+        }
+
+        .debug-connections .connection-dot {
+            background: #0000ff !important; /* Bright blue for testing */
+            width: 16px !important;
+            height: 16px !important;
         }
 
         .person-info h3 {
@@ -410,6 +436,7 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             <button class="btn btn-secondary" onclick="showImportModal()">📤 Import JSON</button>
             <button class="btn btn-warning" onclick="saveUpdatedData()">💾 Save Updated Data</button>
             <button class="btn" onclick="showAdminPanel()">🔐 Admin Panel</button>
+            <button class="btn" onclick="toggleDebugLines()" id="debugButton">🔍 Test Lines</button>
         </div>
     </div>
 
@@ -740,7 +767,19 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             treeDisplay.appendChild(treeContainer);
             
             // Add connecting lines after DOM is ready
-            setTimeout(drawConnections, 100);
+            setTimeout(() => {
+                addAllConnections();
+            }, 100);
+        }
+
+        function addAllConnections() {
+            // Add horizontal connecting lines for multiple children groups
+            const levels = document.querySelectorAll('.tree-level');
+            levels.forEach((level, index) => {
+                if (index > 0) { // Skip root level
+                    addHorizontalConnections(level);
+                }
+            });
         }
 
         function buildTreeStructure() {
@@ -771,13 +810,45 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             levelDiv.className = 'tree-level';
             levelDiv.setAttribute('data-level', level);
             
+            // Check if this level has multiple children from same parent
+            const parentGroups = {};
+            persons.forEach(person => {
+                const parentId = person.parentId || 'root';
+                if (!parentGroups[parentId]) parentGroups[parentId] = [];
+                parentGroups[parentId].push(person);
+            });
+            
+            // Mark level if it has groups with multiple children
+            const hasMultipleChildren = Object.values(parentGroups).some(group => group.length > 1);
+            if (hasMultipleChildren) {
+                levelDiv.classList.add('has-multiple-children');
+            }
+            
             persons.forEach(person => {
                 const personCard = createPersonCard(person);
                 personCard.setAttribute('data-person-id', person.id);
+                
+                // Add parent connection class if not root level
+                if (level > 0) {
+                    personCard.classList.add('has-parent');
+                }
+                
+                // Add connection dot for multiple children scenarios
+                if (hasMultipleChildren && parentGroups[person.parentId] && parentGroups[person.parentId].length > 1) {
+                    const dot = document.createElement('div');
+                    dot.className = 'connection-dot';
+                    personCard.appendChild(dot);
+                }
+                
                 levelDiv.appendChild(personCard);
             });
             
             container.appendChild(levelDiv);
+            
+            // Add horizontal connecting line for multiple children
+            if (hasMultipleChildren) {
+                setTimeout(() => addHorizontalConnections(levelDiv), 10);
+            }
             
             // Render children recursively
             persons.forEach(person => {
@@ -787,123 +858,63 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             });
         }
 
-        function drawConnections() {
-            // Remove existing connections
-            const existingConnections = document.querySelectorAll('.tree-connections');
-            existingConnections.forEach(conn => conn.remove());
+        function addHorizontalConnections(levelDiv) {
+            const cards = levelDiv.querySelectorAll('.person-card');
+            if (cards.length <= 1) return;
             
-            const treeContainer = document.querySelector('.tree');
-            if (!treeContainer) return;
-            
-            const connectionsContainer = document.createElement('div');
-            connectionsContainer.className = 'tree-connections';
-            treeContainer.appendChild(connectionsContainer);
-            
-            // Get all person cards
-            const personCards = document.querySelectorAll('[data-person-id]');
-            
-            // Group by level
-            const levels = {};
-            personCards.forEach(card => {
-                const level = parseInt(card.closest('[data-level]').getAttribute('data-level'));
-                if (!levels[level]) levels[level] = [];
-                levels[level].push(card);
+            // Group cards by parent
+            const parentGroups = {};
+            cards.forEach(card => {
+                const personId = card.getAttribute('data-person-id');
+                const person = familyData.find(p => p.id === personId);
+                const parentId = person.parentId || 'root';
+                
+                if (!parentGroups[parentId]) parentGroups[parentId] = [];
+                parentGroups[parentId].push(card);
             });
             
-            // Draw connections between levels
-            Object.keys(levels).forEach(levelKey => {
-                const level = parseInt(levelKey);
-                const nextLevel = level + 1;
-                
-                if (levels[nextLevel]) {
-                    drawLevelConnections(levels[level], levels[nextLevel], connectionsContainer);
+            // Draw horizontal lines for groups with multiple children
+            Object.values(parentGroups).forEach(group => {
+                if (group.length > 1) {
+                    const firstCard = group[0];
+                    const lastCard = group[group.length - 1];
+                    
+                    const firstRect = firstCard.getBoundingClientRect();
+                    const lastRect = lastCard.getBoundingClientRect();
+                    const levelRect = levelDiv.getBoundingClientRect();
+                    
+                    const line = document.createElement('div');
+                    line.className = 'horizontal-connection-line';
+                    line.style.left = (firstRect.left - levelRect.left + firstRect.width / 2) + 'px';
+                    line.style.width = (lastRect.left - firstRect.left) + 'px';
+                    
+                    levelDiv.appendChild(line);
                 }
             });
         }
 
-        function drawLevelConnections(parentLevel, childLevel, container) {
-            parentLevel.forEach(parentCard => {
-                const parentId = parentCard.getAttribute('data-person-id');
-                const parentRect = parentCard.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                
-                // Find children of this parent
-                const children = childLevel.filter(childCard => {
-                    const childId = childCard.getAttribute('data-person-id');
-                    const childPerson = familyData.find(p => p.id === childId);
-                    return childPerson && childPerson.parentId === parentId;
-                });
-                
-                if (children.length === 0) return;
-                
-                // Calculate parent connection point
-                const parentX = parentRect.left + parentRect.width / 2 - containerRect.left;
-                const parentY = parentRect.bottom - containerRect.top;
-                
-                // Draw vertical line down from parent
-                const verticalLine = document.createElement('div');
-                verticalLine.className = 'connection-line vertical-line';
-                verticalLine.style.left = (parentX - 1.5) + 'px';
-                verticalLine.style.top = parentY + 'px';
-                verticalLine.style.height = '40px';
-                container.appendChild(verticalLine);
-                
-                if (children.length === 1) {
-                    // Single child - direct line
-                    const childCard = children[0];
-                    const childRect = childCard.getBoundingClientRect();
-                    const childX = childRect.left + childRect.width / 2 - containerRect.left;
-                    const childY = childRect.top - containerRect.top;
-                    
-                    // Vertical line to child
-                    const childVertical = document.createElement('div');
-                    childVertical.className = 'connection-line vertical-line';
-                    childVertical.style.left = (childX - 1.5) + 'px';
-                    childVertical.style.top = (parentY + 40) + 'px';
-                    childVertical.style.height = (childY - parentY - 40) + 'px';
-                    container.appendChild(childVertical);
-                    
-                } else {
-                    // Multiple children - horizontal distribution line
-                    const childPositions = children.map(childCard => {
-                        const childRect = childCard.getBoundingClientRect();
-                        return {
-                            card: childCard,
-                            x: childRect.left + childRect.width / 2 - containerRect.left,
-                            y: childRect.top - containerRect.top
-                        };
-                    });
-                    
-                    const leftmostX = Math.min(...childPositions.map(c => c.x));
-                    const rightmostX = Math.max(...childPositions.map(c => c.x));
-                    const distributionY = parentY + 40;
-                    
-                    // Horizontal distribution line
-                    const horizontalLine = document.createElement('div');
-                    horizontalLine.className = 'connection-line horizontal-line';
-                    horizontalLine.style.left = leftmostX + 'px';
-                    horizontalLine.style.top = (distributionY - 1.5) + 'px';
-                    horizontalLine.style.width = (rightmostX - leftmostX) + 'px';
-                    container.appendChild(horizontalLine);
-                    
-                    // Vertical lines to each child
-                    childPositions.forEach(child => {
-                        const childVertical = document.createElement('div');
-                        childVertical.className = 'connection-line vertical-line';
-                        childVertical.style.left = (child.x - 1.5) + 'px';
-                        childVertical.style.top = distributionY + 'px';
-                        childVertical.style.height = (child.y - distributionY) + 'px';
-                        container.appendChild(childVertical);
-                        
-                        // Connection dot at junction
-                        const dot = document.createElement('div');
-                        dot.className = 'connection-dot';
-                        dot.style.left = child.x + 'px';
-                        dot.style.top = distributionY + 'px';
-                        container.appendChild(dot);
-                    });
-                }
-            });
+        function drawConnections() {
+            // This function is now simplified since we use CSS-based connections
+            // Just trigger a re-render if needed
+            console.log('Connections updated via CSS');
+        }
+
+        // Debug function to test line visibility
+        function toggleDebugLines() {
+            const treeContainer = document.querySelector('.tree-container');
+            const button = document.getElementById('debugButton');
+            
+            if (treeContainer.classList.contains('debug-connections')) {
+                treeContainer.classList.remove('debug-connections');
+                button.textContent = '🔍 Test Lines';
+                button.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+                showStatus('Debug mode OFF - Normal line colors restored', 'info');
+            } else {
+                treeContainer.classList.add('debug-connections');
+                button.textContent = '👁️ Normal Lines';
+                button.style.background = 'linear-gradient(135deg, #f56565 0%, #e53e3e 100%)';
+                showStatus('Debug mode ON - Bright colors for testing visibility', 'warning');
+            }
         }
 
         function createPersonCard(person) {
