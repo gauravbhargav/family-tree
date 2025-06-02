@@ -135,7 +135,7 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
         }
 
-        /* Connecting Lines - High Contrast Colors */
+        /* Connecting Lines - Fixed Positioning */
         .person-card::before {
             content: '';
             position: absolute;
@@ -154,6 +154,10 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             display: block;
         }
 
+        .tree-level {
+            position: relative;
+        }
+
         .tree-level:not(:first-child) .person-card {
             position: relative;
         }
@@ -163,7 +167,7 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             position: absolute;
             height: 4px;
             background: #2d3748; /* Dark gray - high contrast */
-            top: -40px;
+            top: -42px; /* Align with vertical line tops */
             z-index: 4;
             border-radius: 2px;
         }
@@ -175,10 +179,9 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             background: #e53e3e; /* Red dot for visibility */
             border: 2px solid #2d3748;
             border-radius: 50%;
-            top: -46px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: -48px; /* Align with horizontal line center */
             z-index: 6;
+            transform: translateX(-50%);
         }
 
         /* Debug mode - temporary bright colors to test visibility */
@@ -862,6 +865,9 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             const cards = levelDiv.querySelectorAll('.person-card');
             if (cards.length <= 1) return;
             
+            // Remove existing horizontal lines and dots for this level
+            levelDiv.querySelectorAll('.horizontal-connection-line, .connection-dot').forEach(el => el.remove());
+            
             // Group cards by parent
             const parentGroups = {};
             cards.forEach(card => {
@@ -876,19 +882,41 @@ Replace 'xxxx@yyyy.com' below with your actual admin email address.
             // Draw horizontal lines for groups with multiple children
             Object.values(parentGroups).forEach(group => {
                 if (group.length > 1) {
-                    const firstCard = group[0];
-                    const lastCard = group[group.length - 1];
+                    const cards = group.sort((a, b) => {
+                        const aRect = a.getBoundingClientRect();
+                        const bRect = b.getBoundingClientRect();
+                        return aRect.left - bRect.left;
+                    });
+                    
+                    const firstCard = cards[0];
+                    const lastCard = cards[cards.length - 1];
                     
                     const firstRect = firstCard.getBoundingClientRect();
                     const lastRect = lastCard.getBoundingClientRect();
                     const levelRect = levelDiv.getBoundingClientRect();
                     
+                    // Create horizontal connecting line
                     const line = document.createElement('div');
                     line.className = 'horizontal-connection-line';
-                    line.style.left = (firstRect.left - levelRect.left + firstRect.width / 2) + 'px';
-                    line.style.width = (lastRect.left - firstRect.left) + 'px';
                     
+                    const startX = firstRect.left - levelRect.left + (firstRect.width / 2);
+                    const endX = lastRect.left - levelRect.left + (lastRect.width / 2);
+                    const lineWidth = endX - startX;
+                    
+                    line.style.left = startX + 'px';
+                    line.style.width = lineWidth + 'px';
                     levelDiv.appendChild(line);
+                    
+                    // Add connection dots at each child position
+                    cards.forEach(card => {
+                        const cardRect = card.getBoundingClientRect();
+                        const dot = document.createElement('div');
+                        dot.className = 'connection-dot';
+                        
+                        const dotX = cardRect.left - levelRect.left + (cardRect.width / 2);
+                        dot.style.left = dotX + 'px';
+                        levelDiv.appendChild(dot);
+                    });
                 }
             });
         }
