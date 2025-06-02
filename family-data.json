@@ -1,0 +1,20 @@
+[
+  {
+    "id": "default001",
+    "name": "Eldest Ancestor",
+    "dob": "",
+    "dod": "",
+    "city": "",
+    "address": "",
+    "occupation": "",
+    "lastLocation": "",
+    "parentId": null,
+    "spouse": {
+      "name": "",
+      "dob": "",
+      "dod": "",
+      "marriedIn": ""
+    },
+    "isRoot": true
+  }
+]
