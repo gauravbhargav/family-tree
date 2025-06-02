@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<!--
+FAMILY TREE SETUP FOR GITHUB PAGES:
+
+1. Create GitHub repository (e.g., "family-tree")
+2. Upload these files:
+   - index.html (this file)
+   - family-data.json (the separate data file)
+3. Enable GitHub Pages in repository Settings
+4. Your app will be at: https://username.github.io/family-tree
+
+UPDATING DATA:
+- Admin can edit family-data.json directly on GitHub.com
+- Or use app interface and email JSON to admin
+- Changes appear immediately after GitHub commit
+
+Replace 'xxxx@yyyy.com' below with your actual admin email address.
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Tree Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-x: auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-weight: 700;
+            font-size: 1.8rem;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.7rem 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+        }
+
+        .tree-container {
+            padding: 2rem;
+            min-height: calc(100vh - 80px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .tree {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 100%;
+        }
+
+        .tree-level {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+            gap: 2rem;
+            width: 100%;
+        }
+
+        .person-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+            position: relative;
+            min-width: 280px;
+            max-width: 320px;
+        }
+
+        .person-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .person-info h3 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1.2rem;
+        }
+
+        .person-info p {
+            color: #4a5568;
+            margin-bottom: 0.3rem;
+            font-size: 0.9rem;
+        }
+
+        .spouse-info {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 2px solid #e2e8f0;
+        }
+
+        .spouse-info h4 {
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .card-actions {
+            margin-top: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-small {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+            border-radius: 6px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .close {
+            color: #a0aec0;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .close:hover {
+            color: #e53e3e;
+        }
+
+        .admin-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 2rem auto;
+            max-width: 400px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        }
+
+        .status-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .status-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+
+        .status-info {
+            background: #bee3f8;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
+        }
+
+        .status-warning {
+            background: #faf089;
+            color: #744210;
+            border: 1px solid #f6e05e;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 1rem;
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .tree-container {
+                padding: 1rem;
+            }
+
+            .person-card {
+                min-width: 250px;
+                max-width: 100%;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                margin: 10% auto;
+                width: 95%;
+            }
+
+            /* Save options modal responsive design */
+            #saveOptionsModal .modal-content > div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: white;
+            padding: 3rem;
+        }
+
+        .empty-state h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+
+        .empty-state p {
+            font-size: 1.1rem;
+            opacity: 0.8;
+            margin-bottom: 2rem;
+        }
+
+        .data-info {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            color: white;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🌳 Family Tree Manager</h1>
+        <div class="header-buttons">
+            <button class="btn" onclick="showAddPersonModal()">👨‍👩‍👧‍👦 Add Person</button>
+            <button class="btn btn-secondary" onclick="exportJSON()">📥 Export JSON</button>
+            <button class="btn btn-secondary" onclick="showImportModal()">📤 Import JSON</button>
+            <button class="btn btn-warning" onclick="saveUpdatedData()">💾 Save Updated Data</button>
+            <button class="btn" onclick="showAdminPanel()">🔐 Admin Panel</button>
+        </div>
+    </div>
+
+    <div class="tree-container">
+        <div class="data-info">
+            <strong>📊 Current Status:</strong> <span id="dataStatus">Loading...</span> | 
+            <strong>👥 People:</strong> <span id="peopleCount">0</span> | 
+            <strong>🔐 Mode:</strong> <span id="currentMode">View Only</span>
+            <br><small style="opacity: 0.8;">💡 For GitHub Pages: Admin updates family-data.json file to save changes permanently</small>
+        </div>
+        
+        <div id="treeDisplay" class="tree"></div>
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h2>Welcome to Your Family Tree</h2>
+            <p>Start by adding the eldest ancestor to begin building your family tree</p>
+            <button class="btn" onclick="showAddPersonModal()">Add First Person</button>
+        </div>
+    </div>
+
+    <!-- Add/Edit Person Modal -->
+    <div id="personModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('personModal')">&times;</span>
+            <h2 id="modalTitle">Add New Person</h2>
+            <form id="personForm">
+                <div class="form-group">
+                    <label for="personName">Full Name *</label>
+                    <input type="text" id="personName" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="personDOB">Date of Birth</label>
+                        <input type="date" id="personDOB">
+                    </div>
+                    <div class="form-group">
+                        <label for="personDOD">Date of Death</label>
+                        <input type="date" id="personDOD">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="personParent">Parent</label>
+                    <select id="personParent">
+                        <option value="">Select Parent (Optional)</option>
+                    </select>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="personCity">City</label>
+                        <input type="text" id="personCity">
+                    </div>
+                    <div class="form-group">
+                        <label for="personOccupation">Occupation</label>
+                        <input type="text" id="personOccupation">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="personAddress">Address</label>
+                    <textarea id="personAddress" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="personLastLocation">Last Known Location</label>
+                    <input type="text" id="personLastLocation">
+                </div>
+
+                <h3 style="margin: 1.5rem 0 1rem 0; color: #4a5568;">Spouse Information</h3>
+
+                <div class="form-group">
+                    <label for="spouseName">Spouse Name</label>
+                    <input type="text" id="spouseName">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="spouseDOB">Spouse Date of Birth</label>
+                        <input type="date" id="spouseDOB">
+                    </div>
+                    <div class="form-group">
+                        <label for="spouseDOD">Spouse Date of Death</label>
+                        <input type="date" id="spouseDOD">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="marriedIn">Married In (Location)</label>
+                    <input type="text" id="marriedIn">
+                </div>
+
+                <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                    <button type="submit" class="btn">💾 Save Person</button>
+                    <button type="button" class="btn btn-danger" onclick="closeModal('personModal')">❌ Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div id="adminModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('adminModal')">&times;</span>
+            <div class="admin-panel">
+                <h2 style="text-align: center; margin-bottom: 1.5rem; color: #4a5568;">Admin Access</h2>
+                <div class="form-group">
+                    <label for="adminPassword">Enter Admin Password:</label>
+                    <input type="password" id="adminPassword" placeholder="Enter password">
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button class="btn" onclick="checkAdminPassword()">🔓 Login as Admin</button>
+                    <button class="btn btn-secondary" onclick="enableRequestMode()">📧 Request Edit Access</button>
+                </div>
+                <div id="adminStatus"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Options Modal -->
+    <div id="saveOptionsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('saveOptionsModal')">&times;</span>
+            <h2>Choose Save Method</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 2rem;">
+                <!-- Admin Section -->
+                <div style="border: 2px solid #667eea; border-radius: 12px; padding: 1.5rem;">
+                    <h3 style="color: #667eea; margin-bottom: 1rem;">🔐 Admin Access</h3>
+                    <p style="margin-bottom: 1rem; color: #4a5568;">Save changes directly to the family tree</p>
+                    
+                    <div class="form-group">
+                        <label for="saveAdminPassword">Admin Password:</label>
+                        <input type="password" id="saveAdminPassword" placeholder="Enter admin password">
+                    </div>
+                    
+                    <button class="btn" onclick="saveAsAdmin()" style="width: 100%;">🔓 Save as Admin</button>
+                    <div id="adminSaveStatus" style="margin-top: 0.5rem;"></div>
+                </div>
+                
+                <!-- Email Request Section -->
+                <div style="border: 2px solid #48bb78; border-radius: 12px; padding: 1.5rem;">
+                    <h3 style="color: #48bb78; margin-bottom: 1rem;">📧 Request Update</h3>
+                    <p style="margin-bottom: 1rem; color: #4a5568;">Send change request to admin for approval</p>
+                    
+                    <div style="padding: 1rem; background: #f7fafc; border-radius: 8px; margin-bottom: 1rem;">
+                        <p style="font-size: 0.9rem; color: #2d3748;">Your changes will be emailed to the admin. You'll see updates once they're approved and the file is updated.</p>
+                    </div>
+                    
+                    <button class="btn btn-secondary" onclick="saveAsRequest()" style="width: 100%;">📧 Send Email Request</button>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 2rem;">
+                <button class="btn btn-danger" onclick="closeModal('saveOptionsModal')">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email JSON Data Modal -->
+    <div id="emailJsonModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('emailJsonModal')">&times;</span>
+            <h2>📧 Send Updated Data to Admin</h2>
+            
+            <div class="status-message status-info">
+                <strong>📋 Your Changes:</strong> The updated family data is ready to be sent to the admin for review and upload to GitHub.
+            </div>
+            
+            <div style="margin: 1.5rem 0;">
+                <h3 style="color: #4a5568; margin-bottom: 0.5rem;">Preview of JSON Data:</h3>
+                <textarea id="jsonPreview" rows="8" readonly style="font-family: 'Courier New', monospace; font-size: 0.8rem; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 1rem;"></textarea>
+            </div>
+            
+            <div style="background: #fef5e7; border: 1px solid #f6ad55; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                <strong>📝 Instructions for Admin:</strong>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem;">The email will include the complete JSON data. Admin should copy this data and update the <code>family-data.json</code> file on GitHub to apply the changes.</p>
+            </div>
+            
+            <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+                <button class="btn btn-secondary" onclick="emailJsonData()">📧 Send to Admin</button>
+                <button class="btn btn-danger" onclick="closeModal('emailJsonModal')">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Data Modal -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('importModal')">&times;</span>
+            <h2>Import Family Tree Data</h2>
+            <div class="form-group">
+                <label for="importData">Paste JSON Data:</label>
+                <textarea id="importData" rows="10" placeholder="Paste exported JSON data here..."></textarea>
+            </div>
+            <div style="margin-top: 1rem; display: flex; gap: 1rem;">
+                <button class="btn" onclick="importFamilyData()">📤 Import Data</button>
+                <button class="btn btn-danger" onclick="closeModal('importModal')">❌ Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // EMBEDDED FAMILY DATA - This gets replaced when generating updated files
+        let EMBEDDED_FAMILY_DATA = [
+            {
+                id: "default001",
+                name: "Eldest Ancestor",
+                dob: "",
+                dod: "",
+                city: "",
+                address: "",
+                occupation: "",
+                lastLocation: "",
+                parentId: null,
+                spouse: {
+                    name: "",
+                    dob: "",
+                    dod: "",
+                    marriedIn: ""
+                },
+                isRoot: true
+            }
+        ];
+
+        // Basic password obfuscation (not secure, just obscured)
+        const adminKey = atob('YWRtaW4xMjM='); // admin123
+        const adminEmail = 'xxxx@yyyy.com'; // Replace with your email
+        
+        let isAdminMode = false;
+        let isRequestMode = false;
+        let familyData = [];
+        let editingPersonId = null;
+        let pendingFormData = null; // Store form data for save options modal
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadFamilyData();
+        });
+
+        // Data Management Functions
+        async function loadFamilyData() {
+            try {
+                // Try to load from external JSON file first
+                const response = await fetch('family-data.json');
+                if (response.ok) {
+                    familyData = await response.json();
+                    document.getElementById('dataStatus').textContent = 'Loaded from family-data.json';
+                } else {
+                    throw new Error('JSON file not found');
+                }
+            } catch (error) {
+                // Fallback to embedded data if JSON file doesn't exist
+                familyData = JSON.parse(JSON.stringify(EMBEDDED_FAMILY_DATA));
+                document.getElementById('dataStatus').textContent = 'Using embedded fallback data';
+                console.log('Loading from embedded data (family-data.json not found)');
+            }
+            
+            renderTree();
+            updateStatusDisplay();
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function updateStatusDisplay() {
+            document.getElementById('peopleCount').textContent = familyData.length;
+            
+            let mode = 'View Only';
+            if (isAdminMode) mode = 'Admin Mode';
+            else if (isRequestMode) mode = 'Request Mode';
+            
+            document.getElementById('currentMode').textContent = mode;
+            
+            // Update data status if not already set by loadFamilyData
+            const currentStatus = document.getElementById('dataStatus').textContent;
+            if (currentStatus === 'Loading...') {
+                document.getElementById('dataStatus').textContent = 'In-memory (unsaved)';
+            }
+        }
+
+        // Tree Rendering Functions
+        function renderTree() {
+            const treeDisplay = document.getElementById('treeDisplay');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (familyData.length === 0) {
+                treeDisplay.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            
+            // Build tree structure
+            const tree = buildTreeStructure();
+            
+            // Render tree levels
+            treeDisplay.innerHTML = '';
+            renderTreeLevel(tree, treeDisplay, 0);
+        }
+
+        function buildTreeStructure() {
+            const personMap = new Map();
+            const rootPersons = [];
+            
+            // Create person map
+            familyData.forEach(person => {
+                personMap.set(person.id, { ...person, children: [] });
+            });
+            
+            // Build parent-child relationships
+            familyData.forEach(person => {
+                if (person.parentId && personMap.has(person.parentId)) {
+                    personMap.get(person.parentId).children.push(personMap.get(person.id));
+                } else {
+                    rootPersons.push(personMap.get(person.id));
+                }
+            });
+            
+            return rootPersons;
+        }
+
+        function renderTreeLevel(persons, container, level) {
+            if (persons.length === 0) return;
+            
+            const levelDiv = document.createElement('div');
+            levelDiv.className = 'tree-level';
+            
+            persons.forEach(person => {
+                const personCard = createPersonCard(person);
+                levelDiv.appendChild(personCard);
+            });
+            
+            container.appendChild(levelDiv);
+            
+            // Render children recursively
+            persons.forEach(person => {
+                if (person.children.length > 0) {
+                    renderTreeLevel(person.children, container, level + 1);
+                }
+            });
+        }
+
+        function createPersonCard(person) {
+            const card = document.createElement('div');
+            card.className = 'person-card';
+            card.innerHTML = `
+                <div class="person-info">
+                    <h3>${person.name}</h3>
+                    ${person.dob ? `<p><strong>Born:</strong> ${formatDate(person.dob)}</p>` : ''}
+                    ${person.dod ? `<p><strong>Died:</strong> ${formatDate(person.dod)}</p>` : ''}
+                    ${person.city ? `<p><strong>City:</strong> ${person.city}</p>` : ''}
+                    ${person.occupation ? `<p><strong>Occupation:</strong> ${person.occupation}</p>` : ''}
+                    ${person.lastLocation ? `<p><strong>Last Location:</strong> ${person.lastLocation}</p>` : ''}
+                </div>
+                ${person.spouse.name ? `
+                    <div class="spouse-info">
+                        <h4>💑 Spouse: ${person.spouse.name}</h4>
+                        ${person.spouse.dob ? `<p><strong>Born:</strong> ${formatDate(person.spouse.dob)}</p>` : ''}
+                        ${person.spouse.dod ? `<p><strong>Died:</strong> ${formatDate(person.spouse.dod)}</p>` : ''}
+                        ${person.spouse.marriedIn ? `<p><strong>Married in:</strong> ${person.spouse.marriedIn}</p>` : ''}
+                    </div>
+                ` : ''}
+                <div class="card-actions">
+                    <button class="btn btn-small" onclick="editPerson('${person.id}')">✏️ Edit</button>
+                    <button class="btn btn-small btn-secondary" onclick="addChild('${person.id}')">👶 Add Child</button>
+                    ${!person.isRoot ? `<button class="btn btn-small btn-danger" onclick="deletePerson('${person.id}')">🗑️ Delete</button>` : ''}
+                </div>
+            `;
+            return card;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        }
+
+        // Modal Functions
+        function showAddPersonModal(parentId = null) {
+            document.getElementById('modalTitle').textContent = 'Add New Person';
+            document.getElementById('personForm').reset();
+            editingPersonId = null;
+            
+            populateParentDropdown(parentId);
+            if (parentId) {
+                document.getElementById('personParent').value = parentId;
+            }
+            
+            document.getElementById('personModal').style.display = 'block';
+        }
+
+        function editPerson(personId) {
+            const person = familyData.find(p => p.id === personId);
+            if (!person) return;
+            
+            document.getElementById('modalTitle').textContent = 'Edit Person';
+            editingPersonId = personId;
+            
+            // Populate form with existing data
+            document.getElementById('personName').value = person.name || '';
+            document.getElementById('personDOB').value = person.dob || '';
+            document.getElementById('personDOD').value = person.dod || '';
+            document.getElementById('personCity').value = person.city || '';
+            document.getElementById('personOccupation').value = person.occupation || '';
+            document.getElementById('personAddress').value = person.address || '';
+            document.getElementById('personLastLocation').value = person.lastLocation || '';
+            document.getElementById('spouseName').value = person.spouse.name || '';
+            document.getElementById('spouseDOB').value = person.spouse.dob || '';
+            document.getElementById('spouseDOD').value = person.spouse.dod || '';
+            document.getElementById('marriedIn').value = person.spouse.marriedIn || '';
+            
+            populateParentDropdown();
+            document.getElementById('personParent').value = person.parentId || '';
+            
+            document.getElementById('personModal').style.display = 'block';
+        }
+
+        function addChild(parentId) {
+            showAddPersonModal(parentId);
+        }
+
+        function deletePerson(personId) {
+            if (confirm('Are you sure you want to delete this person? This will also delete all their descendants.')) {
+                if (isAdminMode) {
+                    deletePersonAndDescendants(personId);
+                    renderTree();
+                    updateStatusDisplay();
+                    showStatus('Person deleted successfully!', 'success');
+                } else if (isRequestMode) {
+                    const person = familyData.find(p => p.id === personId);
+                    sendDeleteRequest(person);
+                } else {
+                    showStatus('Please login as admin or enable request mode to delete people.', 'error');
+                }
+            }
+        }
+
+        function deletePersonAndDescendants(personId) {
+            const toDelete = [personId];
+            let changed = true;
+            
+            while (changed) {
+                changed = false;
+                familyData.forEach(person => {
+                    if (person.parentId && toDelete.includes(person.parentId) && !toDelete.includes(person.id)) {
+                        toDelete.push(person.id);
+                        changed = true;
+                    }
+                });
+            }
+            
+            familyData = familyData.filter(person => !toDelete.includes(person.id));
+        }
+
+        function populateParentDropdown(selectedParentId = null) {
+            const select = document.getElementById('personParent');
+            select.innerHTML = '<option value="">Select Parent (Optional)</option>';
+            
+            familyData.forEach(person => {
+                if (!editingPersonId || person.id !== editingPersonId) {
+                    const option = document.createElement('option');
+                    option.value = person.id;
+                    option.textContent = person.name;
+                    if (selectedParentId && person.id === selectedParentId) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                }
+            });
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            // Clear admin save status when closing save options modal
+            if (modalId === 'saveOptionsModal') {
+                document.getElementById('adminSaveStatus').innerHTML = '';
+                document.getElementById('saveAdminPassword').value = '';
+            }
+            // Clear JSON preview when closing email modal
+            if (modalId === 'emailJsonModal') {
+                document.getElementById('jsonPreview').value = '';
+            }
+        }
+
+        // Save Options Functions
+        function saveAsAdmin() {
+            const password = document.getElementById('saveAdminPassword').value;
+            if (password !== adminKey) {
+                document.getElementById('adminSaveStatus').innerHTML = 
+                    '<div class="status-message status-error" style="font-size: 0.8rem; padding: 0.5rem;">Incorrect password!</div>';
+                return;
+            }
+
+            // Proceed with admin save
+            if (editingPersonId) {
+                updatePersonDirect(editingPersonId, pendingFormData);
+            } else {
+                addNewPersonDirect(pendingFormData);
+            }
+
+            closeModal('saveOptionsModal');
+            closeModal('personModal');
+            showStatus('Person saved successfully! Remember to save the updated file.', 'success');
+        }
+
+        function saveAsRequest() {
+            if (editingPersonId) {
+                const oldPerson = familyData.find(p => p.id === editingPersonId);
+                sendEditRequest(oldPerson, pendingFormData);
+            } else {
+                sendAddRequest(pendingFormData);
+            }
+
+            closeModal('saveOptionsModal');
+            closeModal('personModal');
+        }
+
+        function addNewPersonDirect(formData) {
+            const newPerson = {
+                id: generateId(),
+                ...formData,
+                isRoot: false
+            };
+
+            familyData.push(newPerson);
+            renderTree();
+            updateStatusDisplay();
+        }
+
+        function updatePersonDirect(personId, formData) {
+            const person = familyData.find(p => p.id === personId);
+            if (person) {
+                Object.assign(person, formData);
+                renderTree();
+                updateStatusDisplay();
+            }
+        }
+
+        // Form Submission
+        document.getElementById('personForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Store form data for save options modal
+            pendingFormData = {
+                name: document.getElementById('personName').value,
+                dob: document.getElementById('personDOB').value,
+                dod: document.getElementById('personDOD').value,
+                city: document.getElementById('personCity').value,
+                occupation: document.getElementById('personOccupation').value,
+                address: document.getElementById('personAddress').value,
+                lastLocation: document.getElementById('personLastLocation').value,
+                parentId: document.getElementById('personParent').value || null,
+                spouse: {
+                    name: document.getElementById('spouseName').value,
+                    dob: document.getElementById('spouseDOB').value,
+                    dod: document.getElementById('spouseDOD').value,
+                    marriedIn: document.getElementById('marriedIn').value
+                }
+            };
+
+            // Show save options modal
+            document.getElementById('saveOptionsModal').style.display = 'block';
+        });
+
+        function addNewPerson(formData) {
+            // This function is now only called from save options modal
+            // Redirect to direct functions based on mode
+            if (isAdminMode) {
+                addNewPersonDirect(formData);
+                closeModal('personModal');
+                showStatus('Person added successfully! Remember to save the updated file.', 'success');
+            } else if (isRequestMode) {
+                sendAddRequest(formData);
+                closeModal('personModal');
+            }
+        }
+
+        function updatePerson(personId, formData) {
+            // This function is now only called from save options modal
+            // Redirect to direct functions based on mode
+            const oldPerson = familyData.find(p => p.id === personId);
+            if (!oldPerson) return;
+
+            if (isAdminMode) {
+                updatePersonDirect(personId, formData);
+                closeModal('personModal');
+                showStatus('Person updated successfully! Remember to save the updated file.', 'success');
+            } else if (isRequestMode) {
+                sendEditRequest(oldPerson, formData);
+                closeModal('personModal');
+            }
+        }
+
+        // Admin Functions
+        function showAdminPanel() {
+            document.getElementById('adminModal').style.display = 'block';
+            document.getElementById('adminStatus').innerHTML = '';
+        }
+
+        function checkAdminPassword() {
+            const password = document.getElementById('adminPassword').value;
+            if (password === adminKey) {
+                isAdminMode = true;
+                isRequestMode = false;
+                closeModal('adminModal');
+                updateStatusDisplay();
+                showStatus('Admin mode activated! You can now edit the family tree directly.', 'success');
+            } else {
+                document.getElementById('adminStatus').innerHTML = 
+                    '<div class="status-message status-error">Incorrect password!</div>';
+            }
+        }
+
+        function enableRequestMode() {
+            isRequestMode = true;
+            isAdminMode = false;
+            closeModal('adminModal');
+            updateStatusDisplay();
+            showStatus('Request mode enabled! Your changes will be emailed to admin for approval.', 'info');
+        }
+
+        // File Generation Functions
+        function saveUpdatedData() {
+            if (!isAdminMode) {
+                showStatus('Admin access required to save updated data.', 'error');
+                return;
+            }
+
+            // Show JSON email modal
+            const jsonData = JSON.stringify(familyData, null, 2);
+            document.getElementById('jsonPreview').value = jsonData;
+            document.getElementById('emailJsonModal').style.display = 'block';
+        }
+
+        function emailJsonData() {
+            const jsonData = JSON.stringify(familyData, null, 2);
+            
+            const subject = 'Family Tree: Updated JSON Data for GitHub';
+            const body = `Hello Admin,
+
+The family tree data has been updated and is ready for deployment to GitHub Pages.
+
+INSTRUCTIONS:
+1. Copy the JSON data below
+2. Go to your GitHub repository
+3. Edit the 'family-data.json' file
+4. Replace the entire content with the JSON data below
+5. Commit the changes
+
+UPDATED JSON DATA:
+${jsonData}
+
+The changes will appear on the family tree website immediately after committing to GitHub.
+
+Best regards,
+Family Tree Admin`;
+
+            sendEmail(subject, body);
+            closeModal('emailJsonModal');
+            showStatus('JSON data sent to admin! Changes will appear after GitHub update.', 'success');
+        }
+
+        function generateUpdatedFile() {
+            // Keep the old function for backward compatibility
+            if (!isAdminMode) {
+                showStatus('Admin access required to generate updated files.', 'error');
+                return;
+            }
+
+            const currentPageHTML = document.documentElement.outerHTML;
+            const dataString = JSON.stringify(familyData, null, 8);
+            
+            // Replace the embedded data in the HTML
+            const updatedHTML = currentPageHTML.replace(
+                /let EMBEDDED_FAMILY_DATA = \[[\s\S]*?\];/,
+                `let EMBEDDED_FAMILY_DATA = ${dataString};`
+            );
+
+            // Create download
+            const blob = new Blob([updatedHTML], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'family-tree-updated.html';
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            showStatus('Updated HTML file generated! (Note: Consider using JSON data method for GitHub Pages)', 'warning');
+        }
+
+        // Email Functions
+        function sendAddRequest(personData) {
+            const newPerson = {
+                id: generateId(),
+                ...personData,
+                isRoot: false
+            };
+
+            const subject = 'Family Tree: Add Person Request';
+            const body = `Hello Admin,
+
+A user has requested to add a new person to the family tree:
+
+NEW PERSON DETAILS:
+- Name: ${personData.name}
+- Date of Birth: ${personData.dob || 'Not specified'}
+- Date of Death: ${personData.dod || 'Not specified'}
+- City: ${personData.city || 'Not specified'}
+- Occupation: ${personData.occupation || 'Not specified'}
+- Address: ${personData.address || 'Not specified'}
+- Last Location: ${personData.lastLocation || 'Not specified'}
+- Parent: ${getPersonName(personData.parentId) || 'None'}
+
+SPOUSE DETAILS:
+- Spouse Name: ${personData.spouse.name || 'None'}
+- Spouse DOB: ${personData.spouse.dob || 'Not specified'}
+- Spouse DOD: ${personData.spouse.dod || 'Not specified'}
+- Married In: ${personData.spouse.marriedIn || 'Not specified'}
+
+Please review and add this person to the family tree if appropriate.
+
+Best regards,
+Family Tree User`;
+
+            sendEmail(subject, body);
+            showStatus('Add request sent to admin! You will see changes once admin accepts the update.', 'info');
+        }
+
+        function sendEditRequest(oldData, newData) {
+            const subject = 'Family Tree: Edit Person Request';
+            const body = `Hello Admin,
+
+A user has requested to edit a person in the family tree:
+
+PERSON: ${oldData.name}
+
+OLD VALUES:
+- Name: ${oldData.name}
+- Date of Birth: ${oldData.dob || 'Not specified'}
+- Date of Death: ${oldData.dod || 'Not specified'}
+- City: ${oldData.city || 'Not specified'}
+- Occupation: ${oldData.occupation || 'Not specified'}
+- Address: ${oldData.address || 'Not specified'}
+- Last Location: ${oldData.lastLocation || 'Not specified'}
+- Parent: ${getPersonName(oldData.parentId) || 'None'}
+- Spouse Name: ${oldData.spouse.name || 'None'}
+- Spouse DOB: ${oldData.spouse.dob || 'Not specified'}
+- Spouse DOD: ${oldData.spouse.dod || 'Not specified'}
+- Married In: ${oldData.spouse.marriedIn || 'Not specified'}
+
+NEW VALUES:
+- Name: ${newData.name}
+- Date of Birth: ${newData.dob || 'Not specified'}
+- Date of Death: ${newData.dod || 'Not specified'}
+- City: ${newData.city || 'Not specified'}
+- Occupation: ${newData.occupation || 'Not specified'}
+- Address: ${newData.address || 'Not specified'}
+- Last Location: ${newData.lastLocation || 'Not specified'}
+- Parent: ${getPersonName(newData.parentId) || 'None'}
+- Spouse Name: ${newData.spouse.name || 'None'}
+- Spouse DOB: ${newData.spouse.dob || 'Not specified'}
+- Spouse DOD: ${newData.spouse.dod || 'Not specified'}
+- Married In: ${newData.spouse.marriedIn || 'Not specified'}
+
+Please review and update this person's information if appropriate.
+
+Best regards,
+Family Tree User`;
+
+            sendEmail(subject, body);
+            showStatus('Edit request sent to admin! You will see changes once admin accepts the update.', 'info');
+        }
+
+        function sendDeleteRequest(personData) {
+            const subject = 'Family Tree: Delete Person Request';
+            const body = `Hello Admin,
+
+A user has requested to delete a person from the family tree:
+
+PERSON TO DELETE:
+- Name: ${personData.name}
+- Date of Birth: ${personData.dob || 'Not specified'}
+- Date of Death: ${personData.dod || 'Not specified'}
+- City: ${personData.city || 'Not specified'}
+- Occupation: ${personData.occupation || 'Not specified'}
+
+WARNING: This will also delete all descendants of this person.
+
+Please review and delete this person if appropriate.
+
+Best regards,
+Family Tree User`;
+
+            sendEmail(subject, body);
+            showStatus('Delete request sent to admin!', 'info');
+        }
+
+        function sendEmail(subject, body) {
+            const mailtoLink = `mailto:${adminEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.open(mailtoLink);
+        }
+
+        function getPersonName(personId) {
+            if (!personId) return null;
+            const person = familyData.find(p => p.id === personId);
+            return person ? person.name : 'Unknown';
+        }
+
+        // Data Export/Import Functions
+        function exportJSON() {
+            const dataStr = JSON.stringify(familyData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'family_tree_data.json';
+            link.click();
+            URL.revokeObjectURL(url);
+            showStatus('JSON data exported successfully!', 'success');
+        }
+
+        function showImportModal() {
+            document.getElementById('importModal').style.display = 'block';
+        }
+
+        function importFamilyData() {
+            try {
+                const importData = document.getElementById('importData').value;
+                const parsedData = JSON.parse(importData);
+                
+                if (Array.isArray(parsedData)) {
+                    familyData = parsedData;
+                    renderTree();
+                    updateStatusDisplay();
+                    closeModal('importModal');
+                    showStatus('Data imported successfully! Use "Save Updated File" to make changes permanent.', 'warning');
+                } else {
+                    showStatus('Invalid data format. Please provide a valid JSON array.', 'error');
+                }
+            } catch (error) {
+                showStatus('Error parsing JSON data. Please check the format.', 'error');
+            }
+        }
+
+        // Utility Functions
+        function showStatus(message, type) {
+            // Remove existing status messages
+            const existingStatus = document.querySelector('.status-message');
+            if (existingStatus) {
+                existingStatus.remove();
+            }
+
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `status-message status-${type}`;
+            statusDiv.textContent = message;
+            
+            document.querySelector('.tree-container').insertBefore(statusDiv, document.querySelector('.tree-container').firstChild);
+            
+            setTimeout(() => {
+                if (statusDiv.parentNode) {
+                    statusDiv.remove();
+                }
+            }, 7000);
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+    </script>
+</body>
+</html>
